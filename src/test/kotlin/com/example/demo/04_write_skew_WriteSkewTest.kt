@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.data.repository.findByIdOrNull
 import org.springframework.test.context.TestConstructor
 import org.springframework.transaction.TransactionDefinition
 
@@ -60,7 +61,7 @@ class WriteSkewTest(
                 t1FinishedStep1()
                 awaitT2Step1()
                 // 쓰기: Alice 만 off
-                val alice = doctors.findById(aliceId).orElseThrow()
+                val alice = doctors.findByIdOrNull(aliceId)!!
                 alice.onCall = false
                 doctors.save(alice)
             },
@@ -71,7 +72,7 @@ class WriteSkewTest(
                 println("[T2/Bob]   당직 인원 = $onCallCount → 포기 결정")
                 t2FinishedStep1()
                 // 쓰기: Bob 만 off
-                val bob = doctors.findById(bobId).orElseThrow()
+                val bob = doctors.findByIdOrNull(bobId)!!
                 bob.onCall = false
                 doctors.save(bob)
             },

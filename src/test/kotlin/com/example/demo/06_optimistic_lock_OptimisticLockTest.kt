@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.data.repository.findByIdOrNull
 import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.test.context.TestConstructor
 import org.springframework.transaction.TransactionDefinition
@@ -52,7 +53,7 @@ class OptimisticLockTest(
             isolation = TransactionDefinition.ISOLATION_READ_COMMITTED,
             t1 = {
                 startAsT1()
-                val seen = accounts.findById(accId).orElseThrow()     // version=0
+                val seen = accounts.findByIdOrNull(accId)!!     // version=0
                 println("[T1] 읽음 balance=${seen.balance}, version=${seen.version}")
                 t1FinishedStep1()
                 awaitT2Step1()
@@ -62,7 +63,7 @@ class OptimisticLockTest(
             t2 = {
                 startAsT2()
                 awaitT1Step1()
-                val seen = accounts.findById(accId).orElseThrow()     // version=0 (같은 스냅샷)
+                val seen = accounts.findByIdOrNull(accId)!!     // version=0 (같은 스냅샷)
                 println("[T2] 읽음 balance=${seen.balance}, version=${seen.version}")
                 t2FinishedStep1()
                 seen.balance += 1
@@ -70,7 +71,7 @@ class OptimisticLockTest(
             },
         )
 
-        val acc = accounts.findById(accId).orElseThrow()
+        val acc = accounts.findByIdOrNull(accId)!!
         println("[결과] 최종 balance=${acc.balance}, version=${acc.version}, abort=${result.anyAborted}")
 
         // ★ 한쪽만 승인 → balance=1. 진 사람은 ObjectOptimisticLockingFailureException.
@@ -85,7 +86,7 @@ class OptimisticLockTest(
             isolation = TransactionDefinition.ISOLATION_READ_COMMITTED,
             t1 = {
                 startAsT1()
-                val seen = accounts.findById(accId).orElseThrow()
+                val seen = accounts.findByIdOrNull(accId)!!
                 t1FinishedStep1()
                 awaitT2Step1()
                 seen.balance += 1
@@ -94,7 +95,7 @@ class OptimisticLockTest(
             t2 = {
                 startAsT2()
                 awaitT1Step1()
-                val seen = accounts.findById(accId).orElseThrow()
+                val seen = accounts.findByIdOrNull(accId)!!
                 t2FinishedStep1()
                 seen.balance += 1
                 accounts.save(seen)
@@ -102,7 +103,7 @@ class OptimisticLockTest(
         )
 
         // 승자 한 번의 증가만 살아남음. 진 쪽은 재시도하면 +1 더 할 수 있다(앱 책임).
-        val finalBalance = accounts.findById(accId).orElseThrow().balance
+        val finalBalance = accounts.findByIdOrNull(accId)!!.balance
         println("[결과] balance=$finalBalance (낙관적 락이 lost update 차단), abort=${result.anyAborted}")
         assertThat(finalBalance).isEqualTo(1)
         assertThat(result.anyAborted).isTrue()

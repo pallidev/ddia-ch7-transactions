@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.data.repository.findByIdOrNull
 import org.springframework.test.context.TestConstructor
 import org.springframework.transaction.TransactionDefinition
 
@@ -51,7 +52,7 @@ class LostUpdateTest(
             isolation = TransactionDefinition.ISOLATION_REPEATABLE_READ,
             t1 = {
                 startAsT1()
-                val seen = accounts.findById(accId).orElseThrow().balance     // read = 0
+                val seen = accounts.findByIdOrNull(accId)!!.balance     // read = 0
                 println("[T1] 읽은 값 = $seen")
                 t1FinishedStep1()
                 awaitT2Step1()                                                 // T2 도 읽을 때까지 대기
@@ -60,7 +61,7 @@ class LostUpdateTest(
             t2 = {
                 startAsT2()
                 awaitT1Step1()
-                val seen = accounts.findById(accId).orElseThrow().balance     // read = 0 (T1 미커밋)
+                val seen = accounts.findByIdOrNull(accId)!!.balance     // read = 0 (T1 미커밋)
                 println("[T2] 읽은 값 = $seen")
                 t2FinishedStep1()
                 writeIncrement(seen)                                           // write = seen + 1
@@ -102,7 +103,7 @@ class LostUpdateTest(
 
     /** ORM 의 안전하지 않은 read-modify-write 를 흉내: 읽은 값에서 +1 해서 저장. */
     private fun writeIncrement(seen: Long) {
-        val acc = accounts.findById(accId).orElseThrow()
+        val acc = accounts.findByIdOrNull(accId)!!
         acc.balance = seen + 1
         accounts.save(acc)
     }

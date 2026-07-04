@@ -2,6 +2,7 @@ package com.example.demo.service
 
 import com.example.demo.domain.Doctor
 import com.example.demo.repository.DoctorRepository
+import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -10,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional
  *
  * 시스템 불변식: "한 shift 에는 항상 1명 이상 당직 의사가 있어야 한다."
  *
- * 검사-후-쓰기 흐름이 핵심이다:
+ * 검사-후-쓰기 흐름이 핵심:
  *   1) 현재 당직 인원이 2명 이상인가?
  *   2) 그렇다면 안전하다고 판단하고 본인 onCall = false.
  *
@@ -19,23 +20,18 @@ import org.springframework.transaction.annotation.Transactional
  * 갱신 손실도 더러운 쓰기도 아니다. 이것이 write skew.
  */
 @Service
-class OnCallService(
-    private val doctors: DoctorRepository,
-) {
+class OnCallService(private val doctors: DoctorRepository) {
+
     /** 현재 shift 의 당직 인원 수. (격리 수준에 따라 "보이는" 값이 다르다.) */
     fun countOnCall(shiftId: Long): Int = doctors.countByShiftIdAndOnCallTrue(shiftId)
 
     /**
-     * 검사 후 당직 포기(안전장치 없음).
-     * ConcurrentTx 로 원하는 격리 수준으로 감싸서 호출한다.
-     * @return 포기에 성공했는가(불변식은 신경 쓰지 않고 본문만 수행했는가).
+     * 검사 후 당직 포기(안전장치 없음). ConcurrentTx 로 원하는 격리 수준으로 감싸서 호출.
+     * @return 포기에 성공했는가.
      */
     fun goOffCallUnchecked(doctorId: Long, shiftId: Long): Boolean {
-        if (countOnCall(shiftId) < 2) {
-            // 안전하지 않으므로 포기 거부 — 하지만 동시성 때문에 이 검사가 "거짓말" 이 될 수 있다.
-            return false
-        }
-        val me = doctors.findById(doctorId).orElseThrow()
+        if (countOnCall(shiftId) < 2) return false // 동시성 때문에 이 검사가 "거짓말" 이 될 수 있다.
+        val me = doctors.findByIdOrNull(doctorId)!!
         me.onCall = false
         doctors.save(me)
         return true

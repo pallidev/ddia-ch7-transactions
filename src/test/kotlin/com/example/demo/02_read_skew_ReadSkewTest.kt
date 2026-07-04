@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.data.repository.findByIdOrNull
 import org.springframework.test.context.TestConstructor
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionDefinition
@@ -55,7 +56,7 @@ class ReadSkewTest(
         val writer = thread(start = true) {
             t2ReadOnce.await()                                  // T2 가 먼저 한 번 읽게 함
             tx(TransactionDefinition.ISOLATION_READ_COMMITTED) {
-                val acc = accounts.findById(accId).orElseThrow()
+                val acc = accounts.findByIdOrNull(accId)!!
                 acc.balance = 200
                 accounts.save(acc)
             }
